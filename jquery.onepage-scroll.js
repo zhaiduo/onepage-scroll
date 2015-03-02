@@ -18,8 +18,13 @@
 
   var defaults = {
     sectionContainer: "section",
+//such "ease", "linear", "ease-in",
+// "ease-out", "ease-in-out", or even cubic bezier value such as "cubic-bezier(0.175, 0.885, 0.420, 1.310)"
+	//easing: "cubic-bezier(0.175, 0.885, 0.420, 1.310)",
+	//http://cubic-bezier.com/#.89,-0.01,.58,1.06
+	//easing: "cubic-bezier(0,1.73,0,1.22)",//.8,-0.32,.26,1.57
     easing: "ease",
-    animationTime: 1000,
+    animationTime: 700,
     pagination: true,
     updateURL: false,
     keyboard: true,
@@ -27,7 +32,8 @@
     afterMove: null,
     loop: true,
     responsiveFallback: false,
-    direction : 'vertical'
+    direction : 'vertical',
+	ptPageSize : 4
 	};
 
 	/*------------------------------------------------*/
@@ -53,24 +59,32 @@
         }
 
         function touchmove(event) {
+		  var debug=true;//false;
+		  var isWXAndroidBroswer=navigator.userAgent.toLowerCase().match(/ version\/4\./);
+		  if(debug) $('.debug').html(isWXAndroidBroswer);
           var touches = event.originalEvent.touches;
           if (touches && touches.length) {
-            var deltaX = startX - touches[0].pageX;
+			var deltaX = startX - touches[0].pageX;
             var deltaY = startY - touches[0].pageY;
 
-            if (deltaX >= 50) {
+			//fix android browser in weixin has no swipe event by Adam 2015-3
+			var gap=isWXAndroidBroswer?1:50;
+			//if(debug) $('.debug').append(deltaX+", ");
+			//if(debug) $('.debug').append(deltaY+", ");
+
+            if (deltaX >= gap) {
               $this.trigger("swipeLeft");
             }
-            if (deltaX <= -50) {
+            if (deltaX <= -gap) {
               $this.trigger("swipeRight");
             }
-            if (deltaY >= 50) {
+            if (deltaY >= gap) {
               $this.trigger("swipeUp");
             }
-            if (deltaY <= -50) {
+            if (deltaY <= -gap) {
               $this.trigger("swipeDown");
             }
-            if (Math.abs(deltaX) >= 50 || Math.abs(deltaY) >= 50) {
+            if (Math.abs(deltaX) >= gap || Math.abs(deltaY) >= gap) {
               $this.unbind('touchmove', touchmove);
             }
           }
@@ -91,6 +105,12 @@
         lastAnimation = 0,
         quietPeriod = 500,
         paginationList = "";
+
+	var isWXAndroidBroswer=navigator.userAgent.toLowerCase().match(/ version\/4\./);
+	//fix android browser in weixin has bigger movement by Adam 2015-3
+	var basePos=function(index){
+		return isWXAndroidBroswer?25:100;
+	};
 
     $.fn.transformPage = function(settings, pos, index) {
       if (typeof settings.beforeMove == 'function') settings.beforeMove(index);
@@ -136,7 +156,7 @@
         }
 
       }else {
-        pos = (index * 100) * -1;
+        pos = (index * basePos(index)) * -1;
       }
       if (typeof settings.beforeMove == 'function') settings.beforeMove( next.data("index"));
       current.removeClass("active")
@@ -164,14 +184,14 @@
 
       if(next.length < 1) {
         if (settings.loop == true) {
-          pos = ((total - 1) * 100) * -1;
+          pos = ((total - 1) * basePos(index)) * -1;
           next = $(settings.sectionContainer + "[data-index='"+total+"']");
         }
         else {
           return
         }
       }else {
-        pos = ((next.data("index") - 1) * 100) * -1;
+        pos = ((next.data("index") - 1) * basePos(index)) * -1;
       }
       if (typeof settings.beforeMove == 'function') settings.beforeMove(next.data("index"));
       current.removeClass("active")
@@ -202,7 +222,7 @@
         $("body")[0].className = $("body")[0].className.replace(/\bviewing-page-\d.*?\b/g, '');
         $("body").addClass("viewing-page-"+next.data("index"))
 
-        pos = ((page_index - 1) * 100) * -1;
+        pos = ((page_index - 1) * basePos(page_index)) * -1;
 
         if (history.replaceState && settings.updateURL == true) {
             var href = window.location.href.substr(0,window.location.href.indexOf('#')) + "#" + (page_index - 1);
@@ -210,6 +230,17 @@
         }
         el.transformPage(settings, pos, page_index);
       }
+    }
+
+	//limit moving
+    $.fn.moveCheck = function(el) {
+        var index= $(settings.sectionContainer + ".active").data("index");
+        $('.debug').html("moveCheck:"+index);
+        if(settings.ptPageSize <= parseInt(index)){
+            el.moveTo(settings.ptPageSize);
+        }else if( parseInt(index) <= 1 ){
+            el.moveTo(1);
+        }
     }
 
     function responsive() {
